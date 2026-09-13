@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ta La Non Admin</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0e1a; color:#f9fafb; font-family:-apple-system,sans-serif; padding:15px; }
+h1 { color:#3b82f6; font-size:20px; margin-bottom:20px; text-align:center; }
+.cards { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px; }
+.card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:12px; }
+.card h3 { font-size:10px; color:#9ca3af; margin-bottom:6px; text-transform:uppercase; }
+.card .value { font-size:20px; font-weight:700; color:#3b82f6; }
+.chart-box { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:10px; margin-bottom:10px; }
+.chart-box h2 { font-size:13px; margin-bottom:10px; }
+.chart-container { position:relative; height:140px; }
+</style>
+</head>
+<body>
+<h1>⚡ Ta La Non Admin</h1>
+
+<div class="cards">
+<div class="card"><h3>👤 Users</h3><div class="value" id="s-users">0</div></div>
+<div class="card"><h3>📦 Orders</h3><div class="value" id="s-orders">0</div></div>
+<div class="card"><h3>🔑 Stock</h3><div class="value" id="s-stock">0</div></div>
+<div class="card"><h3>💰 Revenue</h3><div class="value" id="s-revenue">0</div></div>
+</div>
+
+<div class="chart-box">
+<h2>📅 ဒီနေ့ ရောင်းအား</h2>
+<div class="chart-container"><canvas id="todayChart"></canvas></div>
+</div>
+
+<div class="chart-box">
+<h2>📆 ဒီအပတ် ရောင်းအား</h2>
+<div class="chart-container"><canvas id="weekChart"></canvas></div>
+</div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready();
+tg.expand();
+
+// ⚠️ ဒီနေရာမှာ သင့် API URL ထည့်ပါ
+const API = "https://your-api-url.com";
+
+Chart.defaults.color = '#9ca3af';
+Chart.defaults.borderColor = '#1f2937';
+
+function formatMoney(amount) {
+  if (amount >= 1000000) return (amount / 1000000).toFixed(1) + 'M';
+  if (amount >= 1000) return (amount / 1000).toFixed(1) + 'K';
+  return amount.toString();
+}
+
+async function loadDashboard() {
+  try {
+    const s = await (await fetch(API + '/api/stats/summary')).json();
+    document.getElementById('s-users').innerText = s.users;
+    document.getElementById('s-orders').innerText = s.orders;
+    document.getElementById('s-stock').innerText = s.stock;
+    document.getElementById('s-revenue').innerText = formatMoney(s.revenue);
+
+    lineChart('/api/stats/today', 'todayChart', '#3b82f6');
+    lineChart('/api/stats/week', 'weekChart', '#10b981');
+  } catch(e) { console.log(e); }
+}
+
+async function lineChart(endpoint, id, color) {
+  try {
+    const d = await (await fetch(API + endpoint)).json();
+    const ctx = document.getElementById(id).getContext('2d');
+    const g = ctx.createLinearGradient(0,0,0,140);
+    g.addColorStop(0, color+'4d');
+    g.addColorStop(1, color+'00');
+    new Chart(ctx, {
+      type:'line',
+      data:{ labels:d.labels, datasets:[{ data:d.values, borderColor:color, backgroundColor:g, borderWidth:2, fill:true, tension:0.4, pointRadius:2 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,ticks:{callback:v=>(v/1000)+'K'}},x:{grid:{display:false}}} }
+    });
+  } catch(e) { console.log(e); }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>
